@@ -4,10 +4,10 @@
 FleetPilot Example Plugin: Host Ping Button
 ============================================
 Adds a "Ping" action button to every host card on the Hosts page.
-Clicking the button pings the host's IP and shows the round-trip time.
+Clicking the button pings the host's address and shows the round-trip time.
 
 Hooks used: host_card_action
-Routes added: GET /plugins/ping?ip=<ip>
+Routes added: GET /plugins/ping?address=<address>
 
 Install: Place this file in the addons/ directory and restart FleetPilot.
 """
@@ -26,7 +26,7 @@ PROBE_PORTS = (80, 22)
 PROBE_TIMEOUT = 2.0
 
 
-def probe_host(ip: str, ports=PROBE_PORTS, timeout=PROBE_TIMEOUT) -> dict:
+def probe_host(address: str, ports=PROBE_PORTS, timeout=PROBE_TIMEOUT) -> dict:
     """
     TCP-probe a host and report what the attempt that answered took
 
@@ -42,7 +42,7 @@ def probe_host(ip: str, ports=PROBE_PORTS, timeout=PROBE_TIMEOUT) -> dict:
     the answer names a port something is actually listening on.
 
     Args:
-        ip: address to probe
+        address: address to probe
         ports: ports to try, in order
         timeout: connection timeout per attempt, in seconds
 
@@ -59,7 +59,7 @@ def probe_host(ip: str, ports=PROBE_PORTS, timeout=PROBE_TIMEOUT) -> dict:
     for port in ports:
         start = time.monotonic()
         try:
-            with socket.create_connection((ip, port), timeout=timeout):
+            with socket.create_connection((address, port), timeout=timeout):
                 pass
         except ConnectionRefusedError:
             # The host answered with an RST: reachable, nothing listening here
@@ -85,15 +85,15 @@ def probe_host(ip: str, ports=PROBE_PORTS, timeout=PROBE_TIMEOUT) -> dict:
 
 def _ping_button(host: dict) -> str:
     """Return an HTML button that triggers a client-side ping request."""
-    ip = host.get("ip", "")
-    if not ip:
+    address = host.get("address", "")
+    if not address:
         return ""
     return f"""
 <button
   class="btn btn-sm btn-secondary"
   style="font-size:0.75rem; padding:0.25rem 0.6rem"
-  onclick="fpPing(this, '{ip}')"
-  title="Ping {ip}">
+  onclick="fpPing(this, '{address}')"
+  title="Ping {address}">
   <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"
        viewBox="0 0 24 24" style="margin-right:4px; vertical-align:-1px">
     <circle cx="12" cy="12" r="10"/>
@@ -105,10 +105,10 @@ def _ping_button(host: dict) -> str:
 /* Injected once per page by example_host_ping plugin */
 if (!window._fpPingLoaded) {{
   window._fpPingLoaded = true;
-  window.fpPing = function(btn, ip) {{
+  window.fpPing = function(btn, address) {{
     btn.disabled = true;
     btn.textContent = '…';
-    fetch('/plugins/ping?ip=' + encodeURIComponent(ip))
+    fetch('/plugins/ping?address=' + encodeURIComponent(address))
       .then(r => r.json())
       .then(d => {{
         btn.textContent = d.ok
@@ -162,11 +162,11 @@ def register(app, core):
     @bp.route("/plugins/ping")
     @login_required
     def ping():
-        ip = request.args.get("ip", "").strip()
-        if not ip:
-            return jsonify({"ok": False, "error": "no ip"}), 400
-        result = probe_host(ip)
-        result["ip"] = ip
+        address = request.args.get("address", "").strip()
+        if not address:
+            return jsonify({"ok": False, "error": "no address"}), 400
+        result = probe_host(address)
+        result["address"] = address
         return jsonify(result)
 
     app.register_blueprint(bp)
